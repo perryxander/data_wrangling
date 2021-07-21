@@ -1,0 +1,136 @@
+---
+title: "Tidy data"
+output: html_document
+---
+
+
+
+# Data Wrangling 3
+
+```{r}
+
+library(tidyverse)
+
+options(tibble.print_min = 5)
+
+pulse_data = 
+  haven::read_sas("./data/public_pulse_data.sas7bdat") %>%
+  janitor::clean_names()
+
+pulse_data
+
+#problem with the data: the BDI score is spread across four columns which correspond to four observation times
+#correct this problem using pivot_longer to condense them:
+
+pulse_tidy_data = 
+  pivot_longer(
+    pulse_data, 
+    bdi_score_bl:bdi_score_12m,
+    names_to = "visit", 
+    values_to = "bdi")
+
+pulse_tidy_data
+
+#visit is an issue- do not need to keep bdi_score_ prefix- can use additional option in pivot_longer:
+pulse_tidy_data = 
+  pivot_longer(
+    pulse_data, 
+    bdi_score_bl:bdi_score_12m,
+    names_to = "visit", 
+    names_prefix = "bdi_score_",
+    values_to = "bdi")
+
+pulse_tidy_data
+
+#Use the code below to import, tidy, and transform the PULSE dataset into a usable format:
+pulse_data = 
+  haven::read_sas("./data/public_pulse_data.sas7bdat") %>%
+  janitor::clean_names() %>%
+  pivot_longer(
+    bdi_score_bl:bdi_score_12m,
+    names_to = "visit", 
+    names_prefix = "bdi_score_",
+    values_to = "bdi") %>%
+  relocate(visit) %>%
+  mutate(
+    visit = replace(visit, visit == "bl", "00m"),
+    visit = factor(visit, levels = str_c(c("00", "01", "06", "12"), "m"))) %>%
+  arrange(id, visit)
+
+print(pulse_data, n = 12)
+
+#######################################
+analysis_result = tibble(
+  group = c("treatment","treatment","placebo","placedo"),
+  time = c("pre","post","pre","post"),
+  mean = c(4, 8, 3.5, 4)
+)
+
+analysis_result
+
+#alternative- using pivot wider to show data in a non-tidy manner- inverse of pivot_longer
+pivot_wider(
+  analysis_result,
+  names_from = "time",
+  values_from = "mean")
+
+#can use knitr::kable() to produce nicer table for reading
+
+#Binding rows
+fellowship_ring = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "B3:D6") %>%
+  mutate(movie = "fellowship_ring")
+
+two_towers = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "F3:H6") %>%
+  mutate(movie = "two_towers")
+
+return_king = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "J3:L6") %>%
+  mutate(movie = "return_king")
+
+#use bind rows to stack them and tidy the results:
+lotr_tidy = 
+  bind_rows(fellowship_ring, two_towers, return_king) %>%
+  janitor::clean_names() %>%
+  pivot_longer(
+    female:male,
+    names_to = "gender", 
+    values_to = "words") %>%
+  mutate(race = str_to_lower(race)) %>% 
+  select(movie, everything()) 
+
+lotr_tidy
+
+#Joining datasets
+pups_data =
+  read_csv("./data/FAS_pups.csv", col_types = "ciiiii") %>%
+  janitor::clean_names() %>%
+  mutate(sex = recode(sex, '1' = "male", '2' = "female"))
+
+litters_data =
+  read_csv("./data/FAS_litters.csv", col_types = "ccddiiii") %>%
+  janitor::clean_names() %>%
+  separate(group, into = c("dose","day_of_tx"), sep = 3) %>%
+  relocate(litters_number) %>%
+  mutate(
+    wt_gain = g18_weight - g0_weight,
+    dose = str_to_lower(dose)
+  )
+
+fas_data = 
+  left_join(pups_data, litters_data, by = "litter_number")
+
+fas_data
+
+
+
+
+
+
+```
+
+
+
+
+
