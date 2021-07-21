@@ -1,0 +1,273 @@
+---
+title: "Simple document"
+output: html_document
+---
+
+I'm an R Markdown document! 
+
+# Data Wrangling 1
+
+Here's a **code chunk** that samples from 
+a _normal distribution_:
+
+```{r}
+library(tidyverse)
+
+#Read CSV files
+litters_data = read_csv(file = "./data/FAS_litters.csv")
+
+names(litters_data)
+
+litters_data = janitor::clean_names(litters_data)
+names(litters_data)
+
+pups_data = read_csv(file = "./data/FAS_pups.csv")
+
+litters_data
+
+tail(litters_data,5)
+
+skimr::skim(litters_data)
+
+litters_data = read_csv(file = "./data/FAS_litters.csv",
+                        skip = 10, col_names = FALSE) # skip= # of rows to skip before reading data
+                                                    #na- string vector containing character expressions for missing values
+head(litters_data)
+
+#view(litters_data)- use in the console and remove from code chunks
+
+#It is sometime necessary to give explicit column specifications
+litters_data = read_csv(file = "./data/FAS_litters.csv",
+                        col_types = cols(
+                          Group = col_character(),
+                          `Litter Number` = col_character(),
+                          `GD0 weight` = col_double(),
+                          `GD18 weight` = col_double(),
+                          `GD of Birth` = col_integer(),
+                          `Pups born alive` = col_integer(),
+                          `Pups dead @ birth` = col_integer(),
+                          `Pups survive` = col_integer()
+                        )
+                      )
+
+tail(litters_data)
+
+
+litters_data = read_csv(file = "./data/FAS_litters.csv", #using shorthand for column data types
+  col_types = "ccddiiii"
+)
+litters_data
+
+#Read Excel files
+library(readxl)
+mlb11_data = read_excel("data/mlb11.xlsx", n_max = 20)
+head(mlb11_data, 5)
+
+#Read SAS, Strata, and SPSS files
+#library(haven)
+#pulse_data = read_sas("./data/public_pulse_data.sas7bdat")
+#head(pulse_data, 5)
+
+
+```
+
+# Data Wraggling 2
+
+I can take the mean of the sample, too!
+The mean is `r mean(samp)`.
+
+```{r}
+library(tidyverse)
+
+options(tibble.print_min = 3) #changes the printing option to only display 3 rows
+
+litters_data = read_csv("./data/FAS_litters.csv",
+                        col_types = "ccddiiii")
+
+
+litters_data = janitor::clean_names(litters_data)
+
+pups_data = read_csv("./data/FAS_pups.csv",
+                     col_types = "ciiiii")
+
+
+pups_data = janitor::clean_names(pups_data)
+
+#selecting specific columns
+
+select(litters_data, group, litter_number, gd0_weight, pups_born_alive)
+
+#selecting those you want to keep
+select(litters_data, group:gd_of_birth)
+
+#selecting those you to want to remove
+select(litters_data, -pups_survive)
+
+#rename variables
+select(litters_data, GROUP = group, LiTtEr_NuMbEr = litter_number)
+
+#Can use rename if that is all you need to do
+rename(litters_data, GROUP = group, LiTtEr_NuMbEr = litter_number)
+
+#can use helper functions liked starts_with(), ends_with(), or contains()
+select(litters_data, starts_with("gd"))
+
+#everything()
+select(litters_data, litter_number, pups_survive, everything())
+
+#relocate()
+relocate(litters_data, litter_number, pups_survive)
+
+#can use pull option to store vector in a column
+
+#Filtering options:
+#drop_na(litters_data)- removes any row with missing data
+#drop_na(litters_data, wt_increase)- removes for which wt_increase is missing
+
+#Can use . as placeholder for the preceding call
+
+litters_data = 
+  read_csv("./data/FAS_litters.csv", col_types = "ccddiiii") %>%
+  janitor::clean_names(dat = .) %>%
+  select(.data = ., -pups_survive) %>%
+  mutate(.data = .,
+    wt_gain = gd18_weight - gd0_weight,
+    group = str_to_lower(group)) %>% 
+  drop_na(data = ., wt_gain)
+
+#regress wt_gain on pups_born_alive, you can use:
+
+litters_data %>%
+  lm(wt_gain ~ pups_born_alive, data = .) %>%
+  broom::tidy()
+```
+
+# Data Wrangling 3
+
+```{r}
+
+library(tidyverse)
+
+options(tibble.print_min = 5)
+
+pulse_data = 
+  haven::read_sas("./data/public_pulse_data.sas7bdat") %>%
+  janitor::clean_names()
+
+pulse_data
+
+#problem with the data: the BDI score is spread across four columns which correspond to four observation times
+#correct this problem using pivot_longer to condense them:
+
+pulse_tidy_data = 
+  pivot_longer(
+    pulse_data, 
+    bdi_score_bl:bdi_score_12m,
+    names_to = "visit", 
+    values_to = "bdi")
+
+pulse_tidy_data
+
+#visit is an issue- do not need to keep bdi_score_ prefix- can use additional option in pivot_longer:
+pulse_tidy_data = 
+  pivot_longer(
+    pulse_data, 
+    bdi_score_bl:bdi_score_12m,
+    names_to = "visit", 
+    names_prefix = "bdi_score_",
+    values_to = "bdi")
+
+pulse_tidy_data
+
+#Use the code below to import, tidy, and transform the PULSE dataset into a usable format:
+pulse_data = 
+  haven::read_sas("./data/public_pulse_data.sas7bdat") %>%
+  janitor::clean_names() %>%
+  pivot_longer(
+    bdi_score_bl:bdi_score_12m,
+    names_to = "visit", 
+    names_prefix = "bdi_score_",
+    values_to = "bdi") %>%
+  relocate(visit) %>%
+  mutate(
+    visit = replace(visit, visit == "bl", "00m"),
+    visit = factor(visit, levels = str_c(c("00", "01", "06", "12"), "m"))) %>%
+  arrange(id, visit)
+
+print(pulse_data, n = 12)
+
+#######################################
+analysis_result = tibble(
+  group = c("treatment","treatment","placebo","placedo"),
+  time = c("pre","post","pre","post"),
+  mean = c(4, 8, 3.5, 4)
+)
+
+analysis_result
+
+#alternative- using pivot wider to show data in a non-tidy manner- inverse of pivot_longer
+pivot_wider(
+  analysis_result,
+  names_from = "time",
+  values_from = "mean")
+
+#can use knitr::kable() to produce nicer table for reading
+
+#Binding rows
+fellowship_ring = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "B3:D6") %>%
+  mutate(movie = "fellowship_ring")
+
+two_towers = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "F3:H6") %>%
+  mutate(movie = "two_towers")
+
+return_king = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "J3:L6") %>%
+  mutate(movie = "return_king")
+
+#use bind rows to stack them and tidy the results:
+lotr_tidy = 
+  bind_rows(fellowship_ring, two_towers, return_king) %>%
+  janitor::clean_names() %>%
+  pivot_longer(
+    female:male,
+    names_to = "gender", 
+    values_to = "words") %>%
+  mutate(race = str_to_lower(race)) %>% 
+  select(movie, everything()) 
+
+lotr_tidy
+
+#Joining datasets
+pups_data =
+  read_csv("./data/FAS_pups.csv", col_types = "ciiiii") %>%
+  janitor::clean_names() %>%
+  mutate(sex = recode(sex, '1' = "male", '2' = "female"))
+
+litters_data =
+  read_csv("./data/FAS_litters.csv", col_types = "ccddiiii") %>%
+  janitor::clean_names() %>%
+  separate(group, into = c("dose","day_of_tx"), sep = 3) %>%
+  relocate(litters_number) %>%
+  mutate(
+    wt_gain = g18_weight - g0_weight,
+    dose = str_to_lower(dose)
+  )
+
+fas_data = 
+  left_join(pups_data, litters_data, by = "litter_number")
+
+fas_data
+
+
+
+
+
+
+```
+
+
+
+
+
