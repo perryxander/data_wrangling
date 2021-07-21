@@ -3,13 +3,18 @@ title: "Tidy data"
 output: html_document
 ---
 
-
-
-# Data Wrangling 3
-
-```{r}
+```{r setup}
 
 library(tidyverse)
+
+```
+
+
+## 'pivot_longer'
+
+Load the PULSE data
+
+```{r eval=FALSE}
 
 options(tibble.print_min = 5)
 
@@ -18,6 +23,14 @@ pulse_data =
   janitor::clean_names()
 
 pulse_data
+
+```
+
+Wide format to long format...
+
+```{r eval=FALSE}
+
+##Version 1
 
 #problem with the data: the BDI score is spread across four columns which correspond to four observation times
 #correct this problem using pivot_longer to condense them:
@@ -31,6 +44,8 @@ pulse_tidy_data =
 
 pulse_tidy_data
 
+##Version 2
+
 #visit is an issue- do not need to keep bdi_score_ prefix- can use additional option in pivot_longer:
 pulse_tidy_data = 
   pivot_longer(
@@ -42,7 +57,9 @@ pulse_tidy_data =
 
 pulse_tidy_data
 
-#Use the code below to import, tidy, and transform the PULSE dataset into a usable format:
+##Version 3
+
+#Use the code below to import, tidy, and transform the PULSE dataset into a usable format in single step:
 pulse_data = 
   haven::read_sas("./data/public_pulse_data.sas7bdat") %>%
   janitor::clean_names() %>%
@@ -59,7 +76,14 @@ pulse_data =
 
 print(pulse_data, n = 12)
 
-#######################################
+```
+## 'pivot_wider'
+
+Make up some data!
+
+
+```{r}
+
 analysis_result = tibble(
   group = c("treatment","treatment","placebo","placedo"),
   time = c("pre","post","pre","post"),
@@ -75,6 +99,11 @@ pivot_wider(
   values_from = "mean")
 
 #can use knitr::kable() to produce nicer table for reading
+
+```
+
+
+
 
 #Binding rows
 fellowship_ring = 
@@ -122,13 +151,6 @@ fas_data =
   left_join(pups_data, litters_data, by = "litter_number")
 
 fas_data
-
-
-
-
-
-
-```
 
 
 
